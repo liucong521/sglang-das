@@ -2,6 +2,7 @@
 
 import itertools
 import unittest
+from unittest.mock import patch
 
 import torch
 
@@ -25,6 +26,23 @@ def reference(x, kv, qw, kw, eps, clamp):
 
 
 class TestEngramGate(CustomTestCase):
+    def test_layer_dispatches_to_fused_kernel(self):
+        from sglang.srt.layers.engram import engram_gate
+
+        x = torch.randn(1, 4, 128, device="cuda", dtype=torch.bfloat16)
+        kv = torch.randn(1, 5 * 128, device="cuda", dtype=torch.bfloat16)
+        qw = torch.randn(4, 128, device="cuda", dtype=torch.bfloat16)
+        kw = torch.randn_like(qw)
+
+        with patch(
+            "sglang.srt.layers.engram.fused_engram_gate",
+            wraps=fused_engram_gate,
+        ) as fused:
+            result = engram_gate(x, kv, qw, kw, 1e-6, 1e-6)
+
+        fused.assert_called_once()
+        torch.testing.assert_close(result, reference(x, kv, qw, kw, 1e-6, 1e-6))
+
     def test_numerics_and_ownership(self):
         torch.manual_seed(23)
         # Token counts span decode (1), a verify block (8) and a prefill chunk (4096).

@@ -862,7 +862,7 @@ def engram_gate(
     """x [T, hc_mult, dim]; kv [T, (hc_mult + 1) * dim] holds one key per hc copy
     followed by the shared value. Adds the gated value to every copy."""
     if (
-        _cuda_kernels(x)
+        x.is_cuda
         and x.ndim == 3
         and kv.shape == (x.shape[0], (x.shape[1] + 1) * x.shape[2])
         and x.dtype == kv.dtype
