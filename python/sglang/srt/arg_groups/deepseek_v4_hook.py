@@ -155,10 +155,18 @@ def validate_deepseek_v4_cp(server_args: ServerArgs) -> None:
         assert cfg.dp_size == 1, (
             "For round-robin split mode, dp attention is not supported."
         )
-        assert cfg.tp_size <= 8, (
-            "Context parallel only supports single machine (tp_size <= 8). Cross-machine CP has precision issues."
-        )
+        if not is_hcu():
+            assert cfg.tp_size <= 8, (
+                "Context parallel only supports single machine (tp_size <= 8). Cross-machine CP has precision issues."
+            )
+        elif cfg.tp_size > 8:
+            logger.warning(
+                "Enabling experimental cross-machine DeepSeekV4 context "
+                "parallelism on HCU; validate output accuracy before production use."
+            )
     supported_a2a_backends = ("none", "deepep", "megamoe", "mori")
+    if is_hcu():
+        supported_a2a_backends += ("mooncake",)
     if cfg.moe_a2a_backend not in supported_a2a_backends:
         raise ValueError(
             f"DeepSeekV4 CP supports moe_a2a_backend in {supported_a2a_backends}, "
